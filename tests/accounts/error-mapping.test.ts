@@ -6,7 +6,7 @@
  * account exists. These run against fake clients, so they need no database and
  * always run in CI.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { ACTION_ERROR_CODES } from '../../src/contracts';
 import * as accounts from '../../src/features/accounts/service';
@@ -24,6 +24,19 @@ function authFailing(error: { status?: number; code?: string; message?: string }
     },
   } as unknown as RequestClient;
 }
+
+/*
+ * These tests must not depend on the developer's `.env.local`: registration
+ * reads startup configuration, and CI has no such file. Setting a minimal
+ * valid configuration keeps them hermetic and runnable anywhere.
+ */
+beforeAll(() => {
+  process.env.APP_URL ??= 'http://localhost:3000';
+  process.env.SUPABASE_URL ??= 'http://127.0.0.1:54421';
+  process.env.SUPABASE_PUBLISHABLE_KEY ??= 'test-publishable-key';
+  process.env.MARKETPLACE_CURRENCY ??= 'PHP';
+  process.env.LISTING_PHOTOS_BUCKET ??= 'listing-photos';
+});
 
 const goodRegistration = {
   email: 'someone@example.test',
