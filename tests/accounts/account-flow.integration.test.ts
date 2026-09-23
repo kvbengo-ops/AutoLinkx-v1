@@ -59,16 +59,23 @@ describe.skipIf(!stackIsUp)('account journey', () => {
   }, 20_000);
 
   it('creates the profile row from the sign-up name', async () => {
+    // Identify this test's user by its own address, not by display name: the
+    // other integration file creates an actor with the same name, the files
+    // share one database, and Vitest runs them in parallel — a name lookup
+    // could return the wrong row.
+    const admin = createAdminClient();
+    const { data: users, error } = await admin.auth.admin.listUsers();
+    expect(error).toBeNull();
+    userId = users.users.find((user) => user.email === email)?.id ?? '';
+    expect(userId).not.toBe('');
+
     const { data } = await anonymousClient()
       .from('profiles')
-      .select('user_id, display_name')
-      .eq('display_name', 'Ana Reyes')
-      .limit(1)
+      .select('display_name')
+      .eq('user_id', userId)
       .single();
 
     expect(data?.display_name).toBe('Ana Reyes');
-    userId = data?.user_id ?? '';
-    expect(userId).not.toBe('');
   });
 
   it('refuses sign-in until the email is confirmed', async () => {
