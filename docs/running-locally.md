@@ -113,11 +113,25 @@ Open <http://localhost:3000>.
 ## 8. Checks
 
 ```sh
+npm run ci          # lint, typecheck, tests, build — what CI's "check" job runs
+npm run ci:db       # start Supabase, apply migrations, run the tests that need
+                    # a database, regenerate types — CI's "database" job
+```
+
+Individually:
+
+```sh
 npm run lint        # ESLint
 npm run typecheck   # tsc --noEmit
 npm test            # Vitest
 npm run build       # production build
 ```
+
+**Run these before pushing.** GitHub Actions is currently blocked by a billing
+lock on the account, so no workflow has ever executed on a runner — these
+commands are the only verification the project has. After `npm run ci:db`,
+check that `src/server/database.types.ts` is unchanged; a diff there means the
+generated types have drifted from the migrations and should be committed.
 
 Integration tests need the local stack and `.env.local`; they **skip
 themselves** when Supabase is unreachable, so a green run with the stack down

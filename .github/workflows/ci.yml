@@ -50,21 +50,32 @@ jobs:
       # so a green run proves migrations apply from scratch.
       - name: Publish local credentials to the job
         run: |
-          supabase status -o env | sed 's/^/SUPABASE_/' >> "$GITHUB_ENV"
+          # `supabase status -o env` quotes its values, so source the file and
+          # let the shell strip the quotes. Writing those lines into GITHUB_ENV
+          # directly leaves the quotes inside the value, and the URL check then
+          # rejects a perfectly good address.
+          supabase status -o env > supabase.env
+          set -a
+          # shellcheck disable=SC1091
+          . ./supabase.env
+          set +a
           {
+            echo "SUPABASE_URL=${API_URL}"
+            echo "SUPABASE_PUBLISHABLE_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}"
+            echo "SUPABASE_SECRET_KEY=${SECRET_KEY:-$SERVICE_ROLE_KEY}"
             echo "APP_URL=http://localhost:3000"
             echo "MARKETPLACE_CURRENCY=PHP"
             echo "LISTING_PHOTOS_BUCKET=listing-photos"
             echo "LOG_LEVEL=error"
           } >> "$GITHUB_ENV"
+          rm supabase.env
 
-      - name: Map CLI names to the application's variables
+      - name: Confirm the stack is reachable before trusting the tests
         run: |
-          {
-            echo "SUPABASE_URL=$SUPABASE_API_URL"
-            echo "SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY"
-            echo "SUPABASE_SECRET_KEY=$SUPABASE_SECRET_KEY"
-          } >> "$GITHUB_ENV"
+          # The integration tests skip themselves when they cannot reach the
+          # stack, so without this a misconfigured job would pass by skipping.
+          curl --fail --silent --show-error "$SUPABASE_URL/auth/v1/health" > /dev/null
+          echo "Auth is reachable at $SUPABASE_URL"
 
       # These are the tests that skip themselves when no stack is reachable.
       # Running them here is the difference between "green" and "verified".
